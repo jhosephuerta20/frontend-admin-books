@@ -1,89 +1,170 @@
 import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { Trash2, XCircle, CheckCircle } from "lucide-react";
 
 const LibroEliminar = () => {
   const [libros, setLibros] = useState([]);
   const [categorias, setCategorias] = useState([]);
-  const [filtroCategoria, setFiltroCategoria] = useState("");
-  const [libroSeleccionado, setLibroSeleccionado] = useState(null);
-  const [confirmar, setConfirmar] = useState(false);
-  const [eliminado, setEliminado] = useState(false);
+  const [filtroCat, setFiltroCat] = useState("");
+  const [confirmarIdx, setConfirmarIdx] = useState(null);
+  const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
-    const storedCategorias = localStorage.getItem("categorias");
-    setCategorias(storedCategorias ? JSON.parse(storedCategorias) : []);
-    const stored = localStorage.getItem("libros");
-    setLibros(stored ? JSON.parse(stored) : []);
+    const fetchData = async () => {
+      try {
+        const [librosRes, catsRes] = await Promise.all([
+          axios.get("http://35.94.124.77:3000/libro/listar"),
+          axios.get("http://35.94.124.77:3000/categorias/listar"),
+        ]);
+
+        const librosData = await Promise.all(
+          librosRes.data.libros.map(async (libro) => {
+            let autorNombre = "Autor desconocido";
+            if (libro.id_autor) {
+              try {
+                const autorRes = await axios.get(
+                  `http://35.94.124.77:3000/autor/obtener/individual/${libro.id_autor}`
+                );
+                autorNombre = autorRes.data.nombre;
+              } catch {
+                autorNombre = "Error al cargar autor";
+              }
+            }
+            return { ...libro, autorNombre };
+          })
+        );
+
+        setLibros(librosData);
+        setCategorias(catsRes.data.categorias || []);
+      } catch (err) {
+        console.error("Error al cargar datos:", err);
+      }
+    };
+    fetchData();
   }, []);
 
-  const librosFiltrados = filtroCategoria
-    ? libros.filter(l => l.categoria === categorias.find(c => c.id === Number(filtroCategoria))?.nombre)
+  const librosFiltrados = filtroCat
+    ? libros.filter((l) => l.id_categoria === Number(filtroCat))
     : libros;
 
-  const seleccionarLibro = idx => {
-    setLibroSeleccionado(idx);
-    setConfirmar(true);
-    setEliminado(false);
+  const abrirConfirmar = (idx) => {
+    setConfirmarIdx(idx);
+    setMensaje("");
   };
 
-  const cancelar = () => {
-    setConfirmar(false);
-    setLibroSeleccionado(null);
-    setEliminado(false);
+  const cerrarConfirm = () => setConfirmarIdx(null);
+
+  const eliminarLibro = async () => {
+    const id = libros[confirmarIdx].id;
+    try {
+      await axios.delete(`http://35.94.124.77:3000/libro/${id}`);
+      const nuevos = libros.filter((_, i) => i !== confirmarIdx);
+      setLibros(nuevos);
+      setMensaje("Libro eliminado correctamente 🗑️");
+      setConfirmarIdx(null);
+    } catch (err) {
+      console.error("Error al eliminar libro:", err);
+      alert("Hubo un error al eliminar el libro.");
+    }
   };
 
-  const eliminarLibro = () => {
-    const actualizados = [...libros];
-    actualizados.splice(libroSeleccionado, 1);
-    setLibros(actualizados);
-    localStorage.setItem("libros", JSON.stringify(actualizados));
-    setConfirmar(false);
-    setEliminado(true);
-    setLibroSeleccionado(null);
+  const formatearFecha = (iso) => {
+    const d = new Date(iso);
+    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
   };
-
-  const cerrarMensaje = () => setEliminado(false);
 
   return (
-    <div style={{maxWidth:'900px',margin:'0 auto',position:'relative'}}>
-      <h2>Eliminar Libro</h2>
-      <div style={{marginBottom:'16px'}}>
-        <select value={filtroCategoria} onChange={e=>setFiltroCategoria(e.target.value)} style={{padding:'8px',borderRadius:'4px',border:'1px solid #B0B0B0'}}>
+    <div className="max-w-6xl mx-auto p-6">
+      <h2 className="text-2xl font-bold mb-4">Eliminar Libros</h2>
+
+      {mensaje && (
+        <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-800 rounded flex items-center gap-2">
+          <CheckCircle size={20} /> <span>{mensaje}</span>
+        </div>
+      )}
+
+      <div className="mb-6">
+        <select
+          className="px-4 py-2 border rounded shadow focus:outline-none focus:ring focus:border-blue-400"
+          value={filtroCat}
+          onChange={(e) => setFiltroCat(e.target.value)}
+        >
           <option value="">Todas las categorías</option>
-          {categorias.map(cat => (
-            <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+          {categorias.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombrecat}
+            </option>
           ))}
         </select>
       </div>
-      {/* Vista de libros como tarjetas */}
-      <div style={{display:'flex',flexWrap:'wrap',gap:'32px',justifyContent:'flex-start',marginTop:'24px'}}>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {librosFiltrados.map((libro, idx) => (
-          <div key={idx} style={{width:'180px',display:'flex',flexDirection:'column',alignItems:'center',marginBottom:'24px'}}>
-            <div style={{width:'150px',height:'200px',background:'#F4F6F8',borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',marginBottom:'12px'}}>
-              {libro.imagenUrl ? <img src={libro.imagenUrl} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}} /> : '-'}
+          <div
+            key={libro.id}
+            className="bg-white shadow rounded-lg overflow-hidden flex flex-col"
+          >
+            <img
+              src={libro.url_portada}
+              alt={libro.titulo}
+              className="h-48 w-full object-cover"
+            />
+            <div className="p-4 flex-1 flex flex-col">
+              <h3 className="font-semibold text-lg mb-1">{libro.titulo}</h3>
+              <p className="text-sm text-gray-600 mb-1">{libro.descripcion}</p>
+              <p className="text-sm text-gray-500 mb-1">
+                Autor:{" "}
+                <span className="text-blue-700">{libro.autorNombre}</span>
+              </p>
+              <p className="text-sm text-gray-500 mb-1">
+                Categoría:{" "}
+                {categorias.find((c) => c.id === libro.id_categoria)
+                  ?.nombrecat || "Sin categoría"}
+              </p>
+              <p className="text-sm text-gray-500 mb-1">
+                Publicado: {formatearFecha(libro.created_at)}
+              </p>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="font-bold text-indigo-600">
+                  S/ {Number(libro.precio).toFixed(2)}
+                </span>
+                <button
+                  onClick={() => abrirConfirmar(idx)}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
             </div>
-            <div style={{textAlign:'center',fontSize:'16px',fontWeight:'500',marginBottom:'4px'}}>{libro.nombre}</div>
-            <div style={{textAlign:'center',fontSize:'15px',color:'#444',marginBottom:'8px'}}>{libro.autor || <span style={{color:'#bbb'}}>Sin autor</span>}</div>
-            <div style={{textAlign:'center',fontWeight:'bold',fontSize:'18px',color:'#111'}}>S/{Number(libro.precio).toFixed(2)}</div>
-            <button style={{marginTop:'10px',background:'#D7263D',color:'#fff',border:'none',borderRadius:'4px',padding:'4px 10px',fontWeight:'bold',fontSize:'13px',cursor:'pointer'}} onClick={e => {e.stopPropagation();seleccionarLibro(idx);}}>Eliminar</button>
           </div>
         ))}
       </div>
-      {confirmar && (
-        <div style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',background:'rgba(0,0,0,0.2)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:2000}}>
-          <div style={{background:'#fff',padding:'32px 24px',borderRadius:'8px',boxShadow:'0 2px 8px rgba(0,0,0,0.15)',minWidth:'320px',textAlign:'center'}}>
-            <p style={{fontSize:'18px',marginBottom:'24px'}}>¿Seguro que desea eliminar el libro?</p>
-            <div style={{display:'flex',justifyContent:'center',gap:'16px'}}>
-              <button onClick={cancelar} style={{background:'#B0B0B0',color:'#fff',border:'none',borderRadius:'4px',padding:'8px 24px',fontWeight:'bold',fontSize:'15px'}}>Cancelar</button>
-              <button onClick={eliminarLibro} style={{background:'#D7263D',color:'#fff',border:'none',borderRadius:'4px',padding:'8px 24px',fontWeight:'bold',fontSize:'15px'}}>Sí</button>
+
+      {confirmarIdx !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <XCircle size={24} className="text-red-600" />
+              <h4 className="text-lg font-medium">Confirmar eliminación</h4>
             </div>
-          </div>
-        </div>
-      )}
-      {eliminado && (
-        <div style={{position:'fixed',top:0,left:0,width:'100vw',height:'100vh',background:'rgba(0,0,0,0.2)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:2000}}>
-          <div style={{background:'#fff',padding:'32px 24px',borderRadius:'8px',boxShadow:'0 2px 8px rgba(0,0,0,0.15)',minWidth:'320px',textAlign:'center'}}>
-            <p style={{fontSize:'18px',marginBottom:'24px'}}>Libro eliminado</p>
-            <button onClick={cerrarMensaje} style={{background:'#1746A2',color:'#fff',border:'none',borderRadius:'4px',padding:'8px 24px',fontWeight:'bold',fontSize:'15px'}}>Cerrar</button>
+            <p className="mb-6">
+              ¿Seguro que deseas eliminar el libro{" "}
+              <strong>{libros[confirmarIdx]?.titulo}</strong>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cerrarConfirm}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={eliminarLibro}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Eliminar
+              </button>
+            </div>
           </div>
         </div>
       )}

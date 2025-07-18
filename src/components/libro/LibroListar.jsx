@@ -12,7 +12,7 @@ const LibroListar = () => {
         const resLibros = await axios.get(
           "http://35.94.124.77:3000/libro/catalogo/completo"
         );
-        setLibros(resLibros.data); // <-- CORREGIDO AQUÍ
+        setLibros(resLibros.data);
 
         const resCategorias = await axios.get(
           "http://35.94.124.77:3000/categorias/listar"

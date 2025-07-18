@@ -117,12 +117,7 @@ function App() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 p-8 overflow-y-auto">
-        <h1 className="text-3xl font-bold mb-6 text-blue-800">
-          Administración
-        </h1>
-        {renderVista()}
-      </main>
+      <main className="flex-1 p-8 overflow-y-auto">{renderVista()}</main>
     </div>
   );
 }

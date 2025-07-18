@@ -14,6 +14,8 @@ const LibroCrear = () => {
   const [categorias, setCategorias] = useState([]);
   const [autores, setAutores] = useState([]);
   const [libros, setLibros] = useState([]);
+  const [imagenFile, setImagenFile] = useState(null);
+  const [pdfFile, setPdfFile] = useState(null);
 
   useEffect(() => {
     const cargarDatos = () => {
@@ -35,35 +37,51 @@ const LibroCrear = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const nuevoLibro = {
-      isbn,
-      titulo: nombre,
-      descripcion,
-      precio,
-      url_portada: imagenUrl,
-      url_libro: urlLibro,
-      id_categoria: Number(categoria),
-      id_autor: Number(autor),
-    };
+    const formData = new FormData();
+
+    formData.append("isbn", isbn);
+    formData.append("titulo", nombre);
+    formData.append("descripcion", descripcion);
+    formData.append("precio", precio);
+    formData.append("id_categoria", categoria);
+    formData.append("id_autor", autor);
+
+    if (imagenFile) {
+      formData.append("url_portada", imagenFile);
+    }
+
+    if (pdfFile) {
+      formData.append("url_libro", pdfFile);
+    }
 
     axios
-      .post("http://35.94.124.77:3000/libro/crear", nuevoLibro)
+      .post("http://35.94.124.77:3000/libro/crear", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
       .then((res) => {
         setLibros([...libros, res.data]);
         setImagenUrl("");
+        setUrlLibro("");
+        setImagenFile(null);
+        setPdfFile(null);
         setNombre("");
         setAutor("");
         setDescripcion("");
         setCategoria("");
         setPrecio("");
         setIsbn("");
-        setUrlLibro("");
+      })
+      .catch((err) => {
+        console.error("Error al subir libro:", err);
       });
   };
 
   const handleImagenUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setImagenFile(file);
       const url = URL.createObjectURL(file);
       setImagenUrl(url);
     }
@@ -72,6 +90,7 @@ const LibroCrear = () => {
   const handlePdfUpload = (e) => {
     const file = e.target.files[0];
     if (file && file.type === "application/pdf") {
+      setPdfFile(file);
       const url = URL.createObjectURL(file);
       setUrlLibro(url);
     }
