@@ -10,6 +10,7 @@ import LibroCrear from "./components/libro/LibroCrear";
 import LibroEditar from "./components/libro/LibroEditar";
 import LibroEliminar from "./components/libro/LibroEliminar";
 import LibroListar from "./components/libro/LibroListar";
+import Dashboard from "./components/autor/Dashboard";
 import "./App.css";
 
 function App() {
@@ -26,6 +27,8 @@ function App() {
 
   const renderVista = () => {
     switch (vista) {
+      case "Dashboard":
+        return <Dashboard />;
       case "AutorCrear":
         return <AutorCrear />;
       case "AutorEditar":
@@ -48,7 +51,9 @@ function App() {
         return <LibroListar />;
       default:
         return (
-          <div className="text-gray-500">Selecciona una opción del menú.</div>
+          <div className="">
+            <Dashboard />;
+          </div>
         );
     }
   };
@@ -88,6 +93,10 @@ function App() {
           Panel Admin
         </h2>
         <nav className="flex flex-col gap-4">
+          <SidebarSection title="Dashboard" icon={Users} toggleKey="dashboard">
+            <SidebarButton label="Dashboard Admin" viewKey="Dashboard" />
+          </SidebarSection>
+
           <SidebarSection title="Autores" icon={Users} toggleKey="autor">
             <SidebarButton label="Registrar Autor" viewKey="AutorCrear" />
             <SidebarButton label="Editar Autor" viewKey="AutorEditar" />
